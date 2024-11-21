@@ -2,14 +2,14 @@
 import { ref } from 'vue'
 import PouchDB from 'pouchdb'
 
+// Déclaration de l'interface Post
 declare interface Post {
-  _id?: string  // 
-  doc: {
-    post_name: string
-    post_content: string
-    attributes: {
-      creation_date: string
-    }
+  _id?: string
+  _rev?: string // Pour gérer les révisions
+  post_name: string
+  post_content: string
+  attributes: {
+    creation_date: string
   }
 }
 
@@ -20,126 +20,193 @@ export default {
       postsData: [] as Post[],
       document: null as Post | null,
       storage: null as PouchDB.Database | null,
-      newPostName: '',
-      newPostContent: ''
+      isFetched: false // Indique si les données ont été récupérées
     }
   },
 
   mounted() {
-    this.initLocalDatabase()
-    this.fetchData()
+    this.initDatabase() // Initialisation de la base de données à la montée du composant
   },
 
   methods: {
-    addLocalDocument() {
-      const db = ref(this.storage).value
-      if (db) {
-        const newDocument = {
-          doc: {
-            post_name: this.newPostName,
-            post_content: this.newPostContent,
-            attributes: {
-              creation_date: new Date().toISOString()
-            }
-          }
-        }
-
-        db.post(newDocument)
+    // Méthode pour ajouter ou mettre à jour un document
+    putDocument(document: Post) {
+      if (this.storage) {
+        this.storage
+          .put(document)
           .then(() => {
-            console.log('Document ajouté dans la base locale')
-            this.newPostName = ''
-            this.newPostContent = ''
-            this.fetchData()
+            console.log('Document ajouté ou mis à jour avec succès')
+            if (this.isFetched) {
+              this.fetchData() // Met à jour les données uniquement si déjà récupérées
+            }
           })
           .catch((error) => {
-            console.log('Erreur lors de l\'ajout', error)
+            console.error("Erreur lors de l'ajout ou de la mise à jour du document:", error)
           })
       }
     },
 
-    // Récupère les données depuis la base locale
+    addDocument() {
+      const newDocument: Post = {
+        post_name: 'Nouveau post',
+        post_content: 'Contenu du nouveau post',
+        attributes: {
+          creation_date: new Date().toISOString()
+        }
+      }
+      this.postDocument(newDocument)
+    },
+
+    postDocument(document: Post) {
+      if (this.storage) {
+        this.storage
+          .post(document)
+          .then(() => {
+            console.log('Document ajouté avec succès')
+            if (this.isFetched) {
+              this.fetchData() // Met à jour les données uniquement si déjà récupérées
+            }
+          })
+          .catch((error) => {
+            console.error("Erreur lors de l'ajout du document:", error)
+          })
+      }
+    },
+
+    // Méthode pour récupérer un document par son ID
+    fetchDocument(id: string | null) {
+      if (this.storage && id) {
+        this.storage
+          .get(id)
+          .then((doc) => {
+            this.document = doc as Post
+            console.log('Document récupéré:', doc)
+          })
+          .catch((error) => {
+            console.error('Erreur lors de la récupération du document:', error)
+          })
+      }
+    },
+
+    // Méthode pour récupérer tous les documents
     fetchData() {
-      const storage = ref(this.storage)
-      const self = this
-      if (storage.value) {
-        storage.value
+      if (this.storage) {
+        this.storage
           .allDocs({
             include_docs: true,
             attachments: true
           })
           .then((result: any) => {
-            console.log('fetchData success', result)
-            self.postsData = result.rows.map((row: any) => row.doc)
+            console.log('Récupération des données réussie', result)
+            this.postsData = result.rows.map((row: any) => row.doc)
+            this.isFetched = true // Indique que les données ont été récupérées
           })
           .catch((error: any) => {
-            console.log('fetchData error', error)
+            console.error('Erreur lors de la récupération des données:', error)
           })
       }
     },
 
-    // Initialisation de la base de données locale
-    initLocalDatabase() {
-      const localDb = new PouchDB('localDb')
-      if (localDb) {
-        console.log("Base de données locale 'localDb' créée")
-      } else {
-        console.warn('Échec de la création de la base de données locale')
-      }
-      this.storage = localDb
-    },
-
+    // Méthode pour initialiser la connexion à la base de données distante
     initDatabase() {
-      const db = new PouchDB('http://admin:M3w24@localhost:5984/post')
-      if (db) {
-        console.log("Connected to collection 'post'")
-      } else {
-        console.warn('Something went wrong')
-      }
-      this.storage = db
-    },
-
-    replicateDb() {
-    const db = ref(this.storage).value
-    if (db) {
-      db.replicate.from('http://admin:M3w24@localhost:5984/post')
-        .then(() => {
-          console.log('Replication from remote to local successful')
-          this.fetchData()  // Actualisez les données locales
+      console.log('Connexion à la base de données distante')
+      this.storage = new PouchDB('http://admin:M3w24@localhost:5984/post')
+      this.storage
+        .info()
+        .then((info) => {
+          console.log('Connecté à la base de données distante:', info)
         })
         .catch((error) => {
-         console.error('Replication error', error)
+          console.warn('Échec de la connexion à la base de données distante', error)
         })
-  }
+    },
+
+    deleteDocument(id: string) {
+      if (this.storage) {
+        const self = this
+        this.storage
+          .get(id)
+          .then((doc) => {
+            return self?.storage?.remove(doc)
+          })
+          .then(() => {
+            console.log('Document supprimé avec succès')
+            if (this.isFetched) {
+              this.fetchData() // Met à jour les données uniquement si déjà récupérées
+            }
+          })
+          .catch((error) => {
+            console.error('Erreur lors de la suppression du document:', error)
+          })
+      }
+    }
+  },
+
+    updateDistantDatabase() {
+    const remoteDB = 'http://admin:M3w24@localhost:5984/post'; // Base de données distante
+    if (this.storage) {
+      this.storage
+        .replicate.to(remoteDB) // Synchronisation locale -> distante
+        .on('complete', () => {
+          console.log('Synchronisation vers la base distante terminée avec succès');
+        })
+        .on('error', (error) => {
+          console.error('Erreur lors de la synchronisation vers la base distante:', error);
+        });
+    } else {
+      console.warn('La base de données locale n’est pas initialisée');
+    }
+  },
+
+/*       watchRemoteDatabase() {
+      const remoteDB = 'http://admin:M3w24@localhost:5984/post'; // Base de données distante
+      if (this.storage) {
+        const syncHandler = this.storage.sync(remoteDB, {
+          live: true, // Observation en temps réel
+          retry: true // Réessaie en cas d’échec
+        });
+
+        syncHandler
+          .on('change', (info) => {
+            console.log('Modification détectée:', info);
+            this.fetchData(); // Met à jour les données locales après un changement
+          })
+          .on('paused', (info) => {
+            console.log('Synchronisation en pause:', info);
+          })
+          .on('active', () => {
+            console.log('Synchronisation active');
+          })
+          .on('denied', (err) => {
+            console.error('Accès refusé lors de la synchronisation:', err);
+          })
+          .on('error', (err) => {
+            console.error('Erreur lors de la synchronisation en temps réel:', err);
+          });
+      } else {
+        console.warn('La base de données locale n’est pas initialisée');
+      }
+    } */
 }
 
-  }
-}
 </script>
 
 <template>
   <h1>Nombre de posts: {{ postsData.length }}</h1>
-
-  <!-- Formulaire pour ajouter un nouveau post -->
-  <form @submit.prevent="addLocalDocument">
-    <label for="postName">Nom du post:</label>
-    <input v-model="newPostName" id="postName" placeholder="Nom du post" />
-
-    <label for="postContent">Contenu du post:</label>
-    <textarea v-model="newPostContent" id="postContent" placeholder="Contenu du post"></textarea>
-
-    <button type="submit">Ajouter le post</button>
-  </form>
-
-  <!-- Liste des posts -->
   <ul>
     <li v-for="post in postsData" :key="post._id">
       <div class="ucfirst">
-        {{ post.doc.post_name }}
-        <em style="font-size: x-small" v-if="post.doc.attributes?.creation_date">
-          - {{ post.doc.attributes.creation_date }}
+        {{ post.post_name || 'Nom du post indisponible' }}
+        <em style="font-size: x-small" v-if="post.attributes?.creation_date">
+          - {{ post.attributes.creation_date }}
         </em>
-        <p>{{ post.doc.post_content }}</p>
       </div>
+      <button @click="deleteDocument(post._id!)">Supprimer</button>
     </li>
   </ul>
+  <p v-if="!postsData.length">Aucun post disponible.</p>
+
+  <button @click="fetchData">Récupérer les données de la base locale</button>
+  <button @click="updateDistantDatabase">Synchroniser les données vers la base distante</button>
+  <button @click="addDocument">Ajouter un document</button>
 </template>
