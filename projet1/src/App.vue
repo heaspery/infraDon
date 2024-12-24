@@ -6,8 +6,7 @@ import HelloWorld from './components/HelloWorld.vue'
 <template>
   <header>
     <div class="wrapper">
-      <nav>
-      </nav>
+      <nav></nav>
     </div>
   </header>
 

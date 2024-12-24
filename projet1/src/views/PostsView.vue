@@ -19,7 +19,7 @@ export default {
       posts: [] as Post[],
       document: null as Post | null,
       post_name: '',
-      post_content: '',
+      post_content: ''
     }
   },
 
@@ -40,7 +40,7 @@ export default {
         localDatabase
           .sync(remoteDatabaseUrl, {
             live: true,
-            retry: true,
+            retry: true
           })
           .on('change', this.fetchPosts)
 
@@ -58,7 +58,7 @@ export default {
       this.storage
         .allDocs({
           include_docs: true,
-          attachments: false, // Désactivation des pièces jointes pour de meilleures performances si non nécessaires
+          attachments: false // Désactivation des pièces jointes pour de meilleures performances si non nécessaires
         })
         .then((result: any) => {
           console.log('Récupération des données réussie', result)
@@ -71,66 +71,39 @@ export default {
 
     //Création d'un nouveau post et ajout dans la base de données
     createPost() {
+      if (!this.storage) {
+        console.error('Base de données non initialisée.')
+        return
+      }
+
       //On ne veut pas créer un post vide
-      if (!(this.post_content === '') || !(this.post_name === '')) {
-        const newDocument: Post = {
+      if (this.post_content !== '' && this.post_name !== '') {
+        const newPost: Post = {
           post_name: this.post_name,
           post_content: this.post_content,
           attributes: {
-            creation_date: new Date().toISOString(),
-          },
+            creation_date: new Date().toISOString()
+          }
         }
-        this.postDocument(newDocument)
+
+        this.storage
+          .post(newPost)
+          .then(() => {
+            console.log('Document ajouté avec succès')
+            this.post_name = ""
+            this.post_content = ""
+          })
+          .catch((error) => {
+            console.error("Erreur lors de l'ajout du document:", error)
+          })
       } else console.log('Ne peut pas ajouter un post vide')
     },
 
-    postDocument(document: Post) {
-      if (!this.storage) {
-        console.error('Base de données non initialisée.')
-        return
-      }
-
-      this.storage
-        .post(document)
-        .then(() => {
-          console.log('Document ajouté avec succès')
-        })
-        .catch((error) => {
-          console.error("Erreur lors de l'ajout du document:", error)
-        })
-    },
-
-    deletePost(post_id: string | undefined) {
-      if (!this.storage) {
-        console.error('Base de données non initialisée.')
-        return
-      }
-
-      if (post_id) {
-        this.storage
-          .get(post_id)
-          .then((doc) => this.storage!.remove(doc))
-          .catch((error) => {
-            console.error('Erreur lors de la suppression du document:', error)
-          })
-      } else {
-        console.log("undefined id");
-      }
-
-    },
-
-    viewPost(post_id: string | undefined) {
-
-      if (post_id) {
-        this.$router.push(`/posts/${post_id}`)
-      } else {
-        console.log("undefined id");
-
-      }
+    viewPost(post_id?: string) {
+      this.$router.push(`/posts/${post_id}`)
     }
   }
 }
-
 </script>
 
 <template>
@@ -156,8 +129,7 @@ export default {
       <div class="ucfirst">
         {{ post.post_content || 'Contenu du post indisponible' }}
       </div>
-      <button @click="deletePost(post._id)">Supprimer</button>
-      <button @click="viewPost(post._id)">Modifier un post</button>
+      <button @click="viewPost(post._id)">Voir post</button>
     </li>
   </ul>
   <p v-else>Aucun post disponible.</p>
