@@ -1,5 +1,4 @@
 <script lang="ts">
-import { ref } from 'vue'
 import PouchDB from 'pouchdb'
 
 // Déclaration de l'interface Post
@@ -30,6 +29,7 @@ export default {
 
   methods: {
     addDocument() {
+      
       const newDocument: Post = {
         post_name: 'Nouveau post',
         post_content: 'Contenu du nouveau post',
@@ -99,7 +99,7 @@ export default {
 
     initDatabase() {
       console.log('Connexion à la base de données distante');
-      this.storage = new PouchDB('http://admin:M3w24@localhost:5984/post');
+      this.storage = new PouchDB('http://admin:M3w24@localhost:5984/posts');
 
       this.storage
         .info()
