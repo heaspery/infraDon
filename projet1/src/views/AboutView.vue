@@ -1,7 +1,7 @@
 <script lang="ts">
-import PouchDB from 'pouchdb'
+ import PouchDB from 'pouchdb'
 
-// Déclaration de l'interface Post
+/* // Déclaration de l'interface Post
 interface Post {
   _id?: string
   _rev?: string // Pour gérer les révisions
@@ -130,24 +130,11 @@ export default {
         })
     }
   }
-}
+} */
 </script>
 
 <template>
-  <h1>Nombre de posts: {{ postsData.length }}</h1>
-  <ul>
-    <li v-for="post in postsData" :key="post._id">
-      <div class="ucfirst">
-        {{ post.post_name || 'Nom du post indisponible' }}
-        <em style="font-size: x-small" v-if="post.attributes?.creation_date">
-          - {{ post.attributes.creation_date }}
-        </em>
-      </div>
-      <button @click="deleteDocument(post._id!)">Supprimer</button>
-    </li>
-  </ul>
-  <p v-if="!postsData.length">Aucun post disponible.</p>
-
-  <button @click="fetchData">Récupérer les données de la base distante</button>
-  <button @click="addDocument">Ajouter un document</button>
+<div>
+  L'exercice se trouve à l'addresse suivante : ./posts
+</div>
 </template>

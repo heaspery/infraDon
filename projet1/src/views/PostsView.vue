@@ -1,5 +1,7 @@
 <script lang="ts">
 import PouchDB from 'pouchdb'
+import findPlugin from 'pouchdb-find'
+PouchDB.plugin(findPlugin)
 
 // Déclaration de l'interface Post
 interface Post {
@@ -19,7 +21,11 @@ export default {
       posts: [] as Post[],
       document: null as Post | null,
       post_name: '',
-      post_content: ''
+      post_content: '',
+      filterValue: '',
+      filteredPosts: <Post[]>[],
+      filterApplied: false,
+
     }
   },
 
@@ -46,7 +52,43 @@ export default {
 
         this.storage = localDatabase
         this.fetchPosts()
+
+        if (this.storage) {
+          this.storage.createIndex({
+            index: {
+              fields: ['post_name']
+            }
+          }).then(() => {
+            console.log('Index sur "post_name" créé avec succès');
+          }).catch(error => {
+            console.error('Erreur lors de la création de l\'index :', error);
+          });
+        }
+
       })
+    },
+
+    filterPosts(userInput: string) {
+      if (!this.storage) {
+        console.error('Base de données non initialisée');
+        return;
+      }
+
+      this.storage.find({
+        selector: {
+          post_name: { $regex: `${userInput}` } // Recherche insensible à la casse
+        },
+        limit: 10,
+        sort: ['post_name'] // Tri des résultats
+      })
+        .then(result => {
+          console.log('Données filtrées :', result.docs);
+          this.filteredPosts = result.docs as Post[]; // Met à jour les posts filtrés à afficher
+        })
+        .catch(error => {
+          console.error('Erreur lors du filtrage des posts :', error);
+        });
+
     },
 
     fetchPosts() {
@@ -101,12 +143,14 @@ export default {
 
     viewPost(post_id?: string) {
       this.$router.push(`/posts/${post_id}`)
-    }
+    },
+
   }
 }
 </script>
 
 <template>
+  
   <!--Formulaire pour entrer de nouveaux posts-->
   <form @submit.prevent>
     <label for="post_name">Nom du post</label>
@@ -115,6 +159,13 @@ export default {
     <input v-model="post_content" id="post_content" type="text" required />
     <button @click="createPost">Ajouter</button>
   </form>
+
+  <!--Formulaire de recherche -->
+  <div class="topnav" style="margin-top: 50px; margin-bottom: 20px">
+    <label for="filtre">Rechercher un post par nom</label>
+    <input v-model="filterValue" name="filtre" type="text" placeholder="Rechercher..">
+    <button @click="filterPosts(filterValue)">Appliquer</button>
+  </div>
 
   <!--Liste des nouveaux posts-->
   <h1>Nombre de posts: {{ posts.length }}</h1>
@@ -132,5 +183,15 @@ export default {
       <button @click="viewPost(post._id)">Voir post</button>
     </li>
   </ul>
-  <p v-else>Aucun post disponible.</p>
+  <!-- Résultats -->
+  <div style="margin-top : 40px" v-if="filteredPosts.length > 0">
+    <h1>Résultats filtrés :</h1>
+    <ul>
+      <li v-for="post in filteredPosts" :key="post._id">
+        <h3>{{ post.post_name }}</h3>
+        <p>{{ post.post_content }}</p>
+      </li>
+    </ul>
+  </div>
+
 </template>
