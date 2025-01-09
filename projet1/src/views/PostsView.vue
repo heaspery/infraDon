@@ -12,6 +12,9 @@ interface Post {
   attributes: {
     creation_date: string
   }
+  _attachments?: {
+
+  }
 }
 
 export default {
@@ -23,9 +26,9 @@ export default {
       post_name: '',
       post_content: '',
       filterValue: '',
+      attachment: null as File | null,
       filteredPosts: <Post[]>[],
       filterApplied: false,
-
     }
   },
 
@@ -65,7 +68,7 @@ export default {
           });
         }
 
-      })
+      });
     },
 
     filterPosts(userInput: string) {
@@ -100,11 +103,12 @@ export default {
       this.storage
         .allDocs({
           include_docs: true,
-          attachments: false // Désactivation des pièces jointes pour de meilleures performances si non nécessaires
+          attachments: true,
         })
         .then((result: any) => {
           console.log('Récupération des données réussie', result)
-          this.posts = result.rows.map((row: any) => row.doc as Post)
+          this.posts = result.rows.map((row: any) => row.doc as Post) // Récupérer les documents
+          .filter((post: any) => !post._id.startsWith('_design/')); // Exclure ceux qui commencent par '_design/'
         })
         .catch((error: any) => {
           console.error('Erreur lors de la récupération des données:', error)
@@ -125,9 +129,10 @@ export default {
           post_content: this.post_content,
           attributes: {
             creation_date: new Date().toISOString()
+          },
+          _attachments: {
           }
         }
-
         this.storage
           .post(newPost)
           .then(() => {
@@ -145,19 +150,25 @@ export default {
       this.$router.push(`/posts/${post_id}`)
     },
 
+    handleFileChange(event: Event) {
+      const target = event.target as HTMLInputElement; // Cast pour avoir accès à files[]
+      this.attachment = target.files ? target.files[0] : null;
+      console.log(this.attachment)
+    },
+
   }
 }
 </script>
 
 <template>
-  
   <!--Formulaire pour entrer de nouveaux posts-->
   <form @submit.prevent>
     <label for="post_name">Nom du post</label>
     <input v-model="post_name" id="post_name" type="text" required />
     <label for="post_content">Contenu du post</label>
     <input v-model="post_content" id="post_content" type="text" required />
-    <button @click="createPost">Ajouter</button>
+    <label for="asset">Fichier du post</label>
+    <input ref="asset" id="asset" type="file" @change="handleFileChange" required />    <button @click="createPost">Ajouter</button>
   </form>
 
   <!--Formulaire de recherche -->
@@ -183,13 +194,22 @@ export default {
       <button @click="viewPost(post._id)">Voir post</button>
     </li>
   </ul>
+
   <!-- Résultats -->
-  <div style="margin-top : 40px" v-if="filteredPosts.length > 0">
-    <h1>Résultats filtrés :</h1>
+  <div style="margin-top :60 px" v-if="filteredPosts.length > 0">
+    <h2>Résultats filtrés :</h2>
     <ul>
       <li v-for="post in filteredPosts" :key="post._id">
-        <h3>{{ post.post_name }}</h3>
-        <p>{{ post.post_content }}</p>
+        <div class="ucfirst">
+        {{ post.post_name || 'Nom du post indisponible' }}
+        <em style="font-size: x-small" v-if="post.attributes?.creation_date">
+          - {{ post.attributes.creation_date }}
+        </em>
+      </div>
+      <div class="ucfirst">
+        {{ post.post_content || 'Contenu du post indisponible' }}
+      </div>
+      <button @click="viewPost(post._id)">Voir post</button>
       </li>
     </ul>
   </div>
