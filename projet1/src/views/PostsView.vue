@@ -13,7 +13,10 @@ interface Post {
     creation_date: string
   }
   _attachments?: {
-
+    [key: string]: {
+      content_type: string; // Type MIME du fichier
+      data: File; // Le fichier lui-même
+    }
   }
 }
 
@@ -108,7 +111,7 @@ export default {
         .then((result: any) => {
           console.log('Récupération des données réussie', result)
           this.posts = result.rows.map((row: any) => row.doc as Post) // Récupérer les documents
-          .filter((post: any) => !post._id.startsWith('_design/')); // Exclure ceux qui commencent par '_design/'
+            .filter((post: any) => !post._id.startsWith('_design/')); // Exclure ceux qui commencent par '_design/'
         })
         .catch((error: any) => {
           console.error('Erreur lors de la récupération des données:', error)
@@ -133,12 +136,24 @@ export default {
           _attachments: {
           }
         }
+
+        // Vérifiez si un fichier est sélectionné
+        if (this.attachment) {
+          const file = this.attachment;
+          // Ajout de l'attachement
+          newPost._attachments![file.name] = {
+            content_type: file.type, // Type MIME du fichier
+            data: file // Le fichier lui-même
+          };
+        }
+
         this.storage
           .post(newPost)
           .then(() => {
             console.log('Document ajouté avec succès')
             this.post_name = ""
             this.post_content = ""
+            this.attachment = null;
           })
           .catch((error) => {
             console.error("Erreur lors de l'ajout du document:", error)
@@ -151,10 +166,12 @@ export default {
     },
 
     handleFileChange(event: Event) {
-      const target = event.target as HTMLInputElement; // Cast pour avoir accès à files[]
-      this.attachment = target.files ? target.files[0] : null;
-      console.log(this.attachment)
-    },
+      const target = event.target as HTMLInputElement;
+      if (target.files && target.files.length > 0) {
+        this.attachment = target.files[0]; // Récupérer le premier fichier
+        console.log(this.attachment); // Afficher l'objet File pour vérifier
+      }
+    }
 
   }
 }
@@ -168,7 +185,8 @@ export default {
     <label for="post_content">Contenu du post</label>
     <input v-model="post_content" id="post_content" type="text" required />
     <label for="asset">Fichier du post</label>
-    <input ref="asset" id="asset" type="file" @change="handleFileChange" required />    <button @click="createPost">Ajouter</button>
+    <input ref="asset" id="asset" type="file" @change="handleFileChange" required /> <button
+      @click="createPost">Ajouter</button>
   </form>
 
   <!--Formulaire de recherche -->
@@ -190,7 +208,13 @@ export default {
       </div>
       <div class="ucfirst">
         {{ post.post_content || 'Contenu du post indisponible' }}
-      </div>
+      </div>    <div v-if="post._attachments">
+      <p>Fichier attaché: 
+        <a :href="'data:' + post._attachments[Object.keys(post._attachments)[0]].content_type + ';base64,' + post._attachments[Object.keys(post._attachments)[0]].data" download>
+          {{ Object.keys(post._attachments)[0] }}
+        </a>
+      </p>
+    </div>
       <button @click="viewPost(post._id)">Voir post</button>
     </li>
   </ul>
@@ -201,15 +225,15 @@ export default {
     <ul>
       <li v-for="post in filteredPosts" :key="post._id">
         <div class="ucfirst">
-        {{ post.post_name || 'Nom du post indisponible' }}
-        <em style="font-size: x-small" v-if="post.attributes?.creation_date">
-          - {{ post.attributes.creation_date }}
-        </em>
-      </div>
-      <div class="ucfirst">
-        {{ post.post_content || 'Contenu du post indisponible' }}
-      </div>
-      <button @click="viewPost(post._id)">Voir post</button>
+          {{ post.post_name || 'Nom du post indisponible' }}
+          <em style="font-size: x-small" v-if="post.attributes?.creation_date">
+            - {{ post.attributes.creation_date }}
+          </em>
+        </div>
+        <div class="ucfirst">
+          {{ post.post_content || 'Contenu du post indisponible' }}
+        </div>
+        <button @click="viewPost(post._id)">Voir post</button>
       </li>
     </ul>
   </div>
