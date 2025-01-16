@@ -1,6 +1,7 @@
 <script lang="ts">
 import PouchDB from 'pouchdb'
 import findPlugin from 'pouchdb-find'
+
 PouchDB.plugin(findPlugin)
 
 // Déclaration de l'interface Post
@@ -125,8 +126,9 @@ export default {
         return
       }
 
+
       //On ne veut pas créer un post vide
-      if (this.post_content !== '' && this.post_name !== '') {
+      if (this.post_content !== '' && this.post_name !== '' && this.attachment !== null) {
         const newPost: Post = {
           post_name: this.post_name,
           post_content: this.post_content,
@@ -178,8 +180,9 @@ export default {
 </script>
 
 <template>
-  <!--Formulaire pour entrer de nouveaux posts-->
-  <form @submit.prevent>
+
+  <h1>Ajouter un post</h1>
+  <form @submit.prevent id="newPost">
     <label for="post_name">Nom du post</label>
     <input v-model="post_name" id="post_name" type="text" required />
     <label for="post_content">Contenu du post</label>
@@ -189,53 +192,84 @@ export default {
       @click="createPost">Ajouter</button>
   </form>
 
-  <!--Formulaire de recherche -->
-  <div class="topnav" style="margin-top: 50px; margin-bottom: 20px">
-    <label for="filtre">Rechercher un post par nom</label>
-    <input v-model="filterValue" name="filtre" type="text" placeholder="Rechercher..">
-    <button @click="filterPosts(filterValue)">Appliquer</button>
-  </div>
+  <div id="posts">
+    <div id="allposts">
 
-  <!--Liste des nouveaux posts-->
-  <h1>Nombre de posts: {{ posts.length }}</h1>
-  <ul v-if="posts.length">
-    <li v-for="post in posts" :key="post._id">
-      <div class="ucfirst">
-        {{ post.post_name || 'Nom du post indisponible' }}
-        <em style="font-size: x-small" v-if="post.attributes?.creation_date">
-          - {{ post.attributes.creation_date }}
-        </em>
-      </div>
-      <div class="ucfirst">
-        {{ post.post_content || 'Contenu du post indisponible' }}
-      </div>    <div v-if="post._attachments">
-      <p>Fichier attaché: 
-        <a :href="'data:' + post._attachments[Object.keys(post._attachments)[0]].content_type + ';base64,' + post._attachments[Object.keys(post._attachments)[0]].data" download>
-          {{ Object.keys(post._attachments)[0] }}
-        </a>
-      </p>
+      <h1>Nombre de posts: {{ posts.length }}</h1>
+      <ul v-if="posts.length">
+        <li v-for="post in posts" :key="post._id">
+          <div class="ucfirst">
+            {{ post.post_name || 'Nom du post indisponible' }}
+            <em style="font-size: x-small" v-if="post.attributes?.creation_date">
+              - {{ post.attributes.creation_date }}
+            </em>
+          </div>
+          <div class="ucfirst">
+            {{ post.post_content || 'Contenu du post indisponible' }}
+          </div>
+          <div v-if="post._attachments">
+            <p>Fichier attaché:
+              <a :href="'data:' + post._attachments[Object.keys(post._attachments)[0]].content_type + ';base64,' + post._attachments[Object.keys(post._attachments)[0]].data"
+                download>
+                {{ Object.keys(post._attachments)[0] }}
+              </a>
+            </p>
+          </div>
+          <button @click="viewPost(post._id)">Voir post</button>
+        </li>
+      </ul>
     </div>
-      <button @click="viewPost(post._id)">Voir post</button>
-    </li>
-  </ul>
 
-  <!-- Résultats -->
-  <div style="margin-top :60 px" v-if="filteredPosts.length > 0">
-    <h2>Résultats filtrés :</h2>
-    <ul>
-      <li v-for="post in filteredPosts" :key="post._id">
-        <div class="ucfirst">
-          {{ post.post_name || 'Nom du post indisponible' }}
-          <em style="font-size: x-small" v-if="post.attributes?.creation_date">
-            - {{ post.attributes.creation_date }}
-          </em>
-        </div>
-        <div class="ucfirst">
-          {{ post.post_content || 'Contenu du post indisponible' }}
-        </div>
-        <button @click="viewPost(post._id)">Voir post</button>
-      </li>
-    </ul>
+    <div id="filterPost">
+
+      <div class="topnav" style="margin-top: 50px; margin-bottom: 20px">
+        <label for="filtre">Rechercher un post par nom</label>
+        <input v-model="filterValue" name="filtre" type="text" placeholder="Rechercher..">
+        <button @click="filterPosts(filterValue)">Appliquer</button>
+      </div>
+      
+      <div style="margin-top :60 px" v-if="filteredPosts.length > 0">
+        <h2>Résultats filtrés :</h2>
+        <ul>
+          <li class="post" v-for="post in filteredPosts" :key="post._id">
+            <div class="ucfirst">
+              {{ post.post_name || 'Nom du post indisponible' }}
+              <em style="font-size: x-small" v-if="post.attributes?.creation_date">
+                - {{ post.attributes.creation_date }}
+              </em>
+            </div>
+            <div class="ucfirst">
+              {{ post.post_content || 'Contenu du post indisponible' }}
+            </div>
+            <button @click="viewPost(post._id)">Voir post</button>
+          </li>
+        </ul>
+      </div>
+
+      <div v-else>
+        <p>Aucun post ne correspond à votre recherche.</p>
+      </div>
+    </div>
   </div>
-
 </template>
+
+
+<style scoped>
+.topnav,
+form {
+  display: flex;
+  flex-direction: column;
+}
+
+
+#posts {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px; /* Espacement entre les deux colonnes */
+}
+
+#allposts,
+#filterPost {
+  flex: 1; /* Chaque section prend la même largeur */
+}
+</style>
