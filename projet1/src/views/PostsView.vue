@@ -255,6 +255,15 @@ export default {
 
 
 <style scoped>
+
+h1, label, input, div{
+font-family: Arial, Helvetica, sans-serif;
+}
+
+h1 {
+  color: rgb(139, 19, 53);
+}
+
 .topnav,
 form {
   display: flex;
